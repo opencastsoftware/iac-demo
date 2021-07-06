@@ -1,0 +1,26 @@
+
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    commands:
+      - echo "Deploying Cloudformation Template"
+      - aws s3 ls
+      - aws cloudformation deploy --template-file iac-demo/cf-templates/simple-cf.yml --stack-name simple-ec2 --capabilities CAPABILITY_NAMED_IAM --region eu-west-1
+      - echo "done done"
+  pre_build:
+    commands:
+      # - echo Installing NPM dependencies...
+      # - yarn install --production
+  build:
+    commands:
+      # - echo $environment
+      # - sls deploy --stage $environment 
+      # - API_URL=$(cat ci-cd/utils/output.json | jq -r .ApiUrl)
+      # - aws ssm put-parameter --name ApiUrl-$environment --type String --value $API_URL --overwrite
+  post_build:
+    commands:
+      # - echo Deployment successful

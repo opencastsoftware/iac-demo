@@ -1,0 +1,11 @@
+
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - set -e
+      - echo "hello from codebuild"
+      - pip3 install cfn-lint
+      - cfn-lint iac-demo/cf-templates/simple-cf.yml
+

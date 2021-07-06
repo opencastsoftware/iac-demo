@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  GitHubOwner:
+    Type: String
+    Description: The owner of the GitHub repo for the source step of the pipeline.
+
+  GitHubRepo:
+    Type: String
+    Description: The name of GitHub repo to use as the source of the pipeline.
+    
+Resources:
+
+  GitHubConnection:
+    Type: 'AWS::CodeStarConnections::Connection'
+    Properties:
+      ConnectionName: innovations-internal-systems-cfn
+      ProviderType: GitHub
+
+  DeployBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Suspended
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref DeployBucket
+      RoleArn: !GetAtt
+        - CodePipelineServiceRole
+        - Arn
+      Stages:
+        - Name: Source # this is the name that will show up in the AWS console, so consider this the user-friendly name
+          Actions:
+            - Name: Get-sources # this is the name used to reference a step by. Consider this the developer-friendly name
+              ActionTypeId:
+                Version: '1'
+                Owner: AWS
+                Category: Source
+                Provider: CodeStarSourceConnection
+              OutputArtifacts:
+                - Name: code-artifact #the name of the zip file containing our source code. This will be used as InputArtifact by the following stages
+              Configuration:
+                ConnectionArn: !Ref GitHubConnection
+                FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
+                BranchName: "main"
+              RunOrder: 1
+        - Name: Lint
+          Actions:
+            - Name: Lint
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              RunOrder: 1
+              Configuration:
+                ProjectName: "Lint" 
+              InputArtifacts:
+                - Name: code-artifact
+        - Name: Staging
+          Actions:
+            - Name: Deploy-to-Staging
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              RunOrder: 1
+              Configuration:
+                ProjectName: "Deploy-to-staging" # reference to the CodeBuild project with this name. Must mach the name of an existing CodeBuild project
+              InputArtifacts:
+                - Name: code-artifact # reference to the source code artifact with the same name. Must mach the Output artifact name in the Source stage.
+        - Name: Promote
+          Actions:
+            - Name: Promote-staging-to-production #Built-in step that adds a manual approval step
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+        - Name: Production
+          Actions:
+            - Name: Deploy-to-Production
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              RunOrder: 1
+              Configuration:
+                ProjectName: "Deploy-to-production" #reference to the CodeBuild project with this name. Must mach the name of an existing CodeBuild project
+              InputArtifacts:
+                - Name: code-artifact
+
+  Test:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: "Lint"
+      ServiceRole: !GetAtt
+        - CodePipelineServiceRole
+        - Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: "iac-demo/cf-templates/buildspecs/test-spec.yml"
+      TimeoutInMinutes: 10 
+
+  DeployToStaging:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: "Deploy-to-staging"
+      ServiceRole: !GetAtt
+        - CodePipelineServiceRole
+        - Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        EnvironmentVariables:
+          - Name: environment
+            Value: staging
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: "iac-demo/cf-templates/buildspecs/buildspec.yml"
+      TimeoutInMinutes: 10    
+      
+  DeployToProduction:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: "Deploy-to-production"
+      ServiceRole: !GetAtt
+        - CodePipelineServiceRole
+        - Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        EnvironmentVariables:
+          - Name: environment
+            Value: prod
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: "iac-demo/cf-templates/buildspecs/buildspec.yml"
+      TimeoutInMinutes: 10
+
+  CodePipelineServiceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "pipeline-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+                - codebuild.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: pipeline-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource: "*"
+              - Effect: Allow #this will be needed if you use CodeCommit as a repo provider
+                Action:
+                  - "codecommit:CancelUploadArchive"
+                  - "codecommit:GetBranch"
+                  - "codecommit:GetCommit"
+                  - "codecommit:GetUploadArchiveStatus"
+                  - "codecommit:UploadArchive"
+                Resource: !Sub "arn:aws:codecommit:*:${AWS::AccountId}:<your-stack-name>"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DeleteLogGroup"
+                Resource:
+                  - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/codebuild/*"
+                  - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/codebuild/*:log-stream:*"
+                  - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/lambda/*:log-stream:*"
+              - Effect: Allow
+                Action:
+                  - "codebuild:BatchGetBuilds"
+                  - "codebuild:StartBuild"
+                Resource:
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Lint"
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Contract-Testing"
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Integration-Testing"
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Deploy-to-staging" #CodeBuild project we've created earlier
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Deploy-to-production" #CodeBuild project we've created earlier
+              - Effect: Allow
+                Action:
+                  - "iam:GetRole"
+                  - "iam:GetRolePolicy"
+                  - "iam:CreateRole"
+                  - "iam:PutRolePolicy"
+                  - "iam:DeleteRolePolicy"
+                  - "iam:DeleteRole"
+                  - "iam:PassRole"
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/innovations-*-${AWS::Region}-lambdaRole"
+              - Effect: Allow
+                Action:
+                  - "iam:GetRole"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                - "lambda:GetFunctionConfiguration"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "iam:CreateRole"
+                  - "iam:DeleteRolePolicy"
+                  - "iam:DeleteRole"
+                  - "iam:PutRolePolicy"
+                  - "iam:PassRole"
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/innovations-*-IamRoleCustomResources*"
+              - Effect: Allow
+                Action:
+                  - "cloudformation:CreateStack"
+                  - "cloudformation:UpdateStack"
+                  - "cloudformation:DeleteStack"
+                  - "cloudformation:Describe*"
+                  - "cloudformation:List*"
+                  - "cloudformation:Get*"
+                  - "cloudformation:PreviewStackUpdate"
+                  - "cloudformation:ValidateTemplate"
+                  - "cloudformation:CreateChangeSet"
+                  - "cloudformation:ExecuteChangeSet"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:DeleteLogGroup"
+                  - "logs:DeleteLogStream"
+                  - "logs:DescribeLog*"
+                  - "logs:FilterLogEvents"
+                Resource:
+                  - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group::log-stream*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:DeleteLogGroup"
+                Resource:
+                  - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group*"
+              - Effect: Allow
+                Action:
+                  - "codestar-connections:ListConnections"
+                  - "codestar-connections:UseConnection"
+                Resource: !Ref GitHubConnection
+              - Effect: Allow
+                Action:
+                  - "lambda:GetFunction"
+                  - "lambda:CreateFunction"
+                  - "lambda:ListVersionsByFunction"
+                  - "lambda:DeleteFunction"
+                  - "lambda:PublishVersion"
+                  - "lambda:GetFunctionConfiguration"
+                  - "lambda:UpdateFunctionCode"
+                  - "lambda:AddPermission"
+                  - "lambda:UpdateFunctionConfiguration"
+                  - "lambda:RemovePermission"
+                Resource: 
+                  - !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:innovations-*-createPerson"
+                  - !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:innovations-*-getPerson"
+                  - !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:innovations-*-listPersons"
+              - Effect: Allow
+                Action:
+                  - "lambda:GetFunction"
+                  - "lambda:CreateFunction"
+                  - "lambda:DeleteFunction"
+                  - "lambda:UpdateFunctionCode"
+                  - "lambda:InvokeFunction"
+                Resource:
+                  - !Sub "arn:aws:lambda:*:${AWS::AccountId}:function:innovations-*-custom-resource-apigw-cw-role"
+              - Effect: Allow
+                Action:
+                  - "apigateway:POST"
+                  - "apigateway:GET"
+                  - "apigateway:PUT"
+                  - "apigateway:DELETE"
+                  - "apigateway:PATCH"
+                Resource:
+                  - !Sub "arn:aws:apigateway:*::/restapis*"                  
+              - Effect: Allow
+                Action: 
+                  - "dynamodb:DescribeTable"
+                  - "dynamodb:CreateTable"
+                  - "dynamodb:DeleteTable"
+                  - "dynamodb:UpdateTable"
+                Resource:
+                  - !Sub "arn:aws:dynamodb:*:${AWS::AccountId}:table/*"
+              - Effect: Allow
+                Action: 
+                  - "ssm:PutParameter"
+                  - "ssm:GetParameter"
+                Resource:
+                  - !Sub "arn:aws:ssm:*:${AWS::AccountId}:parameter/*"                  
