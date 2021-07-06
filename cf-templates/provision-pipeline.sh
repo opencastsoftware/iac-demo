@@ -9,4 +9,5 @@ aws cloudformation deploy \
     --parameter-overrides \
         GitHubOwner="opencastsoftware" \
         GitHubRepo="iac-demo" \
-        GitHubRepoBranch="main"
+        GitHubRepoBranch="main" \
+        CodeStarConnection="arn:aws:codestar-connections:eu-west-1:220482811210:connection/fb25cea4-e5b3-4b55-b606-edc956fddcd0"

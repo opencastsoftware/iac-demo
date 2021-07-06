@@ -7,15 +7,13 @@ Parameters:
   GitHubRepo:
     Type: String
     Description: The name of GitHub repo to use as the source of the pipeline.
+
+  CodeStarConnection:
+    Type: String
+    Description: The name of GitHub repo to use as the source of the pipeline.
     
 Resources:
-
-  GitHubConnection:
-    Type: 'AWS::CodeStarConnections::Connection'
-    Properties:
-      ConnectionName: innovations-internal-systems-cfn
-      ProviderType: GitHub
-
+  
   DeployBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -45,7 +43,7 @@ Resources:
               OutputArtifacts:
                 - Name: code-artifact #the name of the zip file containing our source code. This will be used as InputArtifact by the following stages
               Configuration:
-                ConnectionArn: !Ref GitHubConnection
+                ConnectionArn: !Sub "${CodeStarConnection}"
                 FullRepositoryId: !Sub "${GitHubOwner}/${GitHubRepo}"
                 BranchName: "main"
               RunOrder: 1
@@ -244,7 +242,6 @@ Resources:
                   - "cloudformation:Describe*"
                   - "cloudformation:List*"
                   - "cloudformation:Get*"
-                  - "cloudformation:PreviewStackUpdate"
                   - "cloudformation:ValidateTemplate"
                   - "cloudformation:CreateChangeSet"
                   - "cloudformation:ExecuteChangeSet"
@@ -269,7 +266,7 @@ Resources:
                 Action:
                   - "codestar-connections:ListConnections"
                   - "codestar-connections:UseConnection"
-                Resource: !Ref GitHubConnection
+                Resource: !Sub "${CodeStarConnection}"
               - Effect: Allow
                 Action:
                   - "lambda:GetFunction"
