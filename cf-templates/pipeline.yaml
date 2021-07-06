@@ -13,7 +13,7 @@ Parameters:
     Description: The name of GitHub repo to use as the source of the pipeline.
     
 Resources:
-  
+
   DeployBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -60,9 +60,9 @@ Resources:
                 ProjectName: "Lint" 
               InputArtifacts:
                 - Name: code-artifact
-        - Name: Staging
+        - Name: Spin-Up-Instances
           Actions:
-            - Name: Deploy-to-Staging
+            - Name: Spin-up-instances
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -70,30 +70,9 @@ Resources:
                 Version: "1"
               RunOrder: 1
               Configuration:
-                ProjectName: "Deploy-to-staging" # reference to the CodeBuild project with this name. Must mach the name of an existing CodeBuild project
+                ProjectName: "Spin-up-instances" # reference to the CodeBuild project with this name. Must mach the name of an existing CodeBuild project
               InputArtifacts:
                 - Name: code-artifact # reference to the source code artifact with the same name. Must mach the Output artifact name in the Source stage.
-        - Name: Promote
-          Actions:
-            - Name: Promote-staging-to-production #Built-in step that adds a manual approval step
-              ActionTypeId:
-                Category: Approval
-                Owner: AWS
-                Provider: Manual
-                Version: "1"
-        - Name: Production
-          Actions:
-            - Name: Deploy-to-Production
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Provider: CodeBuild
-                Version: "1"
-              RunOrder: 1
-              Configuration:
-                ProjectName: "Deploy-to-production" #reference to the CodeBuild project with this name. Must mach the name of an existing CodeBuild project
-              InputArtifacts:
-                - Name: code-artifact
 
   Test:
     Type: AWS::CodeBuild::Project
@@ -110,13 +89,13 @@ Resources:
         Image: aws/codebuild/standard:5.0
       Source:
         Type: CODEPIPELINE
-        BuildSpec: "iac-demo/cf-templates/buildspecs/test-spec.yml"
+        BuildSpec: "cf-templates/buildspecs/test-spec.yml"
       TimeoutInMinutes: 10 
 
-  DeployToStaging:
+  SpinUpInstances:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: "Deploy-to-staging"
+      Name: "Spin-up-instances"
       ServiceRole: !GetAtt
         - CodePipelineServiceRole
         - Arn
@@ -131,29 +110,8 @@ Resources:
             Value: staging
       Source:
         Type: CODEPIPELINE
-        BuildSpec: "iac-demo/cf-templates/buildspecs/buildspec.yml"
+        BuildSpec: "cf-templates/buildspecs/buildspec.yml"
       TimeoutInMinutes: 10    
-      
-  DeployToProduction:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: "Deploy-to-production"
-      ServiceRole: !GetAtt
-        - CodePipelineServiceRole
-        - Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:5.0
-        EnvironmentVariables:
-          - Name: environment
-            Value: prod
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: "iac-demo/cf-templates/buildspecs/buildspec.yml"
-      TimeoutInMinutes: 10
 
   CodePipelineServiceRole:
     Type: "AWS::IAM::Role"
@@ -202,10 +160,7 @@ Resources:
                   - "codebuild:StartBuild"
                 Resource:
                   - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Lint"
-                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Contract-Testing"
-                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Integration-Testing"
-                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Deploy-to-staging" #CodeBuild project we've created earlier
-                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Deploy-to-production" #CodeBuild project we've created earlier
+                  - !Sub "arn:aws:codebuild:*:${AWS::AccountId}:project/Spin-up-instances" #CodeBuild project we've created earlier
               - Effect: Allow
                 Action:
                   - "iam:GetRole"
@@ -314,4 +269,14 @@ Resources:
                   - "ssm:PutParameter"
                   - "ssm:GetParameter"
                 Resource:
-                  - !Sub "arn:aws:ssm:*:${AWS::AccountId}:parameter/*"                  
+                  - !Sub "arn:aws:ssm:*:${AWS::AccountId}:parameter/*"     
+              - Effect: Allow
+                Action:
+                  - "ec2:CreateSecurityGroup"
+                  - "ec2:DescribeSecurityGroups"
+                  - "ec2:DeleteSecurityGroup"
+                  - "ec2:AuthorizeSecurityGroupIngress"
+                  - "ec2:RunInstances"
+                  - "ec2:TerminateInstances"
+                  - "ec2:DescribeInstances"
+                Resource: "*"  
