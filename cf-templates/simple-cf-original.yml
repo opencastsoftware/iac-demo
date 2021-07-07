@@ -6,11 +6,11 @@ Resources:
       ImageId: ami-0f89681a05a3a9de7
       Tags:
         - Key: "Name"
-          Value: "iac-demo-recreated"
+          Value: "iac-demo-norecreate"
         - Key: "Group"
           Value: "iac-demo-instances"
       SecurityGroups: 
-        - !Ref NoIngressSecurityGroup
+        - !Ref MySecurityGroup
   MySecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
