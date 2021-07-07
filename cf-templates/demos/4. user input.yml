@@ -34,11 +34,11 @@ Resources:
             # Ensure AWS CFN Bootstrap is the latest
             yum install -y aws-cfn-bootstrap
             # Install the files and packages from the metadata
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance  --region ${AWS::Region}
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance  --region ${AWS::Region}
   MySecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: Enable SSH access via port 22
+      GroupDescription: open ports 22 and 80
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
