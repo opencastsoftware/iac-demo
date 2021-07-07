@@ -7,5 +7,6 @@ phases:
       - set -e
       - echo "cfn-guard install"
       - curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/aws-cloudformation/cloudformation-guard/main/install-guard.sh | sh
+      - PATH=${PATH}:~/.guard/bin
       - cfn-guard validate -d cf-templates/simple-cf.yml -r cfn-guard-templates/ec2-checks.rules
 
