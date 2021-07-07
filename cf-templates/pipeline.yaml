@@ -283,4 +283,5 @@ Resources:
                   - "ec2:RevokeSecurityGroupIngress"
                   - "ec2:StopInstances"
                   - "ec2:ModifyInstanceAttribute"
+                  - "ec2:StartInstances"
                 Resource: "*"  
