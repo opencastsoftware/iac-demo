@@ -6,7 +6,7 @@ Resources:
       ImageId: ami-0f89681a05a3a9de7
       Tags:
         - Key: "Name"
-          Value: !Join [ " ", [ EC2, Instance, with, Fn, Join ] ]
+          Value: "demo1"
         - Key: "Group"
           Value: "iac-demo-instances"
       SecurityGroups: 
