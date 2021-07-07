@@ -281,4 +281,6 @@ Resources:
                   - "ec2:DescribeInstances"
                   - "ec2:createTags"
                   - "ec2:RevokeSecurityGroupIngress"
+                  - "ec2:StopInstances"
+                  - "ec2:ModifyInstanceAttribute"
                 Resource: "*"  
