@@ -1,39 +1,16 @@
 Resources:
   Ec2Instance:
     Type: 'AWS::EC2::Instance'
-    Metadata: 
-      AWS::CloudFormation::Init:
-        config: 
-          packages: 
-            yum:
-              httpd: []
-              php: []
-          files: 
-            /var/www/html/index.php:
-              content: <?php print "Hello University of Sunderland!"; ?>
-          services: 
-            sysvinit:
-              httpd:
-                enabled: true
-                ensureRunning: true
     Properties:
       InstanceType: t2.micro
       ImageId: ami-0f89681a05a3a9de7
       Tags:
         - Key: "Name"
-          Value: "iac-user-input"
+          Value: "iac-demo-norecreate"
         - Key: "Group"
           Value: "iac-demo-instances"
       SecurityGroups: 
         - !Ref MySecurityGroup
-      UserData:
-        'Fn::Base64': 
-          !Sub |
-            #!/bin/bash -xe            
-            # Ensure AWS CFN Bootstrap is the latest
-            yum install -y aws-cfn-bootstrap
-            # Install the files and packages from the metadata
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance  --region ${AWS::Region}
   MySecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -43,11 +20,12 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+  NoSSHSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Only web
+      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-  NoIngressSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
-    Properties:
-      GroupDescription: No ingress

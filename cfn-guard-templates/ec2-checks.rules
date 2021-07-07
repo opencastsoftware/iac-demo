@@ -1,12 +1,25 @@
-let aws_ec2_securitygroup_resources = Resources.*[ Type == 'AWS::EC2::SecurityGroup' ]
-rule aws_ec2_securitygroup when %aws_ec2_securitygroup_resources !empty {
-  %aws_ec2_securitygroup_resources.Properties.SecurityGroupIngress == 
-  [{"IpProtocol":"tcp","FromPort":"22","ToPort":"22","CidrIp":"0.0.0.0/0"}]
-  let ingresses = %aws_ec2_securitygroup_resources.Properties.SecurityGroupIngress.*
-  %ingresses {
-      IpProtocol == "tcp"
-      FromPort != "22"
+let aws_ec2_securitygroup_resources = Resources.*[ 
+    Type == "AWS::EC2::SecurityGroup" 
+]
+
+rule prevent_ssh_access when %aws_ec2_securitygroup_resources !empty {
+  #select ingress rules that are strings
+
+  let ingress = %aws_ec2_securitygroup_resources.Properties.SecurityGroupIngress[
+        FromPort      exists
+        ToPort    exists
+  ]
+  when %ingress !empty {
+    %ingress {
+      when FromPort exists
+      ToPort exists {
+        FromPort > 22 or
+        ToPort < 22
+      }
+    }
+
   }
+  
 }
 let aws_ec2_instance_resources = Resources.*[ Type == 'AWS::EC2::Instance' ]
 rule aws_ec2_instance when %aws_ec2_instance_resources !empty {
