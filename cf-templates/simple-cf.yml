@@ -7,6 +7,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: !Join [ " ", [ EC2, Instance, with, Fn, Join ] ]
+        - Key: "Group"
+          Value: "iac-demo-instances"
       SecurityGroups: 
         - !Ref MySecurityGroup
   MySecurityGroup:

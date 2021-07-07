@@ -279,6 +279,6 @@ Resources:
                   - "ec2:RunInstances"
                   - "ec2:TerminateInstances"
                   - "ec2:DescribeInstances"
-                  - "ec2:RevokeSecurityGroupIngress"
                   - "ec2:createTags"
+                  - "ec2:RevokeSecurityGroupIngress"
                 Resource: "*"  
