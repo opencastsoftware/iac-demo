@@ -6,7 +6,7 @@ Resources:
       ImageId: ami-0f89681a05a3a9de7
       Tags:
         - Key: "Name"
-          Value: "iac-demo-1"
+          Value: "iac-demo-norecreate"
         - Key: "Group"
           Value: "iac-demo-instances"
       SecurityGroups: 
@@ -19,4 +19,13 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
+          CidrIp: 0.0.0.0/0
+  NoSSHSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Only web
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
