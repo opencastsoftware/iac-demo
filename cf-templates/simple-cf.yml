@@ -8,7 +8,7 @@ Resources:
         - Key: "Name"
           Value: "iac-demo-1"
         - Key: "Group"
-          Value: "iac-demo-instances"
+          Valu: "iac-demo-instances"
       SecurityGroups: 
         - !Ref MySecurityGroup
   MySecurityGroup:
