@@ -10,8 +10,7 @@ Resources:
               php: []
           files: 
             /var/www/html/index.php:
-              content: !Sub |
-                <?php print "Hello University of Sunderland!"; ?>
+              content: <?php print "Hello University of Sunderland!"; ?>
           services: 
             sysvinit:
               httpd:
