@@ -10,7 +10,7 @@ Resources:
         - Key: "Group"
           Value: "iac-demo-instances"
       SecurityGroups: 
-        - !Ref NoIngressSecurityGroup
+        - !Ref NoSSHSecurityGroup
   MySecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
