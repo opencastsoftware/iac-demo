@@ -1,7 +1,93 @@
 ---
-- name: EmptyTest
+- name: EmptyFileTest
   input: {}
   expectations:
     rules:
       prevent_ssh_access: SKIP
       aws_ec2_instance: SKIP
+- name: EmptyResourcesTest
+  input:
+     Resources: {}
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+      aws_ec2_instance: SKIP
+- name: SecurityGroupNoPropertiesTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+- name: SecurityGroupSSHOpenTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+  expectations:
+    rules:
+      prevent_ssh_access: FAIL
+- name: SecurityGroupOtherPortsAlsoOpenTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+  expectations:
+    rules:
+      prevent_ssh_access: FAIL
+- name: SecurityGroupOtherPortsOpenTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+  expectations:
+    rules:
+      prevent_ssh_access: PASS
+
+- name: EC2t2NoPropertiesNotAllowed
+  input:
+    Resources:
+      MyEC2Instance:
+        Type: AWS::EC2::Instance
+  expectations:
+    rules:
+      aws_ec2_instance: FAIL
+- name: EC2t2EmptyPropertiesNotAllowed
+  input:
+    Resources:
+      MyEC2Instance:
+        Type: AWS::EC2::Instance
+        Properties: {}
+  expectations:
+    rules:
+      aws_ec2_instance: FAIL
+- name: EC2t2MicroAllowed
+  input:
+    Resources:
+      MyEC2Instance:
+        Type: AWS::EC2::Instance
+        Properties:
+          InstanceType: t2.micro
+  expectations:
+    rules:
+      aws_ec2_instance: PASS
