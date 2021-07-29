@@ -1,0 +1,7 @@
+---
+- name: EmptyTest
+  input: {}
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+      aws_ec2_instance: SKIP
