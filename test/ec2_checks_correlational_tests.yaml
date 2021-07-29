@@ -1,0 +1,57 @@
+---
+- name: EmptyFileTest
+  input: {}
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+      openssh_security_groups_must_be_tagged_unsafe: SKIP
+- name: EmptyResourcesTest
+  input:
+     Resources: {}
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+      openssh_security_groups_must_be_tagged_unsafe: SKIP
+- name: SecurityGroupNoPropertiesTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties: {}
+  expectations:
+    rules:
+      prevent_ssh_access: SKIP
+      openssh_security_groups_must_be_tagged_unsafe: SKIP
+- name: SecurityGroupSSHOpenTest
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+  expectations:
+    rules:
+      prevent_ssh_access: FAIL
+      openssh_security_groups_must_be_tagged_unsafe: FAIL
+- name: SecurityGroupOpenSSHTaggedOK
+  input:
+     Resources: 
+       MySecGp:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+          Tags: 
+            - Key: "AllowedSSH"
+              Value: "true"
+
+  expectations:
+    rules:
+      prevent_ssh_access: FAIL
+      openssh_security_groups_must_be_tagged_unsafe: PASS
+

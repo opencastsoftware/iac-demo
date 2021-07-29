@@ -90,3 +90,13 @@
   expectations:
     rules:
       aws_ec2_instance: PASS
+- name: EC2BigEffingServerNotAllowed
+  input:
+    Resources:
+      MyEC2Instance:
+        Type: AWS::EC2::Instance
+        Properties:
+          InstanceType: m5.masseev
+  expectations:
+    rules:
+      aws_ec2_instance: PASS
