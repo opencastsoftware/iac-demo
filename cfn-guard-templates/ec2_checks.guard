@@ -3,20 +3,17 @@ let aws_ec2_securitygroup_resources = Resources.*[
 ]
 
 rule prevent_ssh_access when %aws_ec2_securitygroup_resources !empty {
-  #select ingress rules that are strings
+  #select ingress rules that have from and to ports
 
   let ingress = %aws_ec2_securitygroup_resources.Properties.SecurityGroupIngress[
         FromPort      exists
         ToPort    exists
   ]
   when %ingress !empty {
-    %ingress {
-      when FromPort exists
-      ToPort exists {
-        FromPort > 22 or
-        ToPort < 22
-      }
-    }
+    %ingress.FromPort > 22 or
+    %ingress.ToPort < 22
+      
+    
 
   }
   
